@@ -8,7 +8,6 @@ from langchain_core.output_parsers import StrOutputParser
 # Initialize LLM
 llm = OllamaLLM(model="llama3")
 
-# Modern chain construction
 target_chain = (
     ChatPromptTemplate.from_template("""
     You're a helpful assistant. A user uploaded a dataset with these columns:
@@ -21,10 +20,12 @@ target_chain = (
 )
 
 def guess_target_column(df):
+    print("Guessing target column...")
     columns_str = ", ".join(df.columns)
     return target_chain.invoke({"columns": columns_str})
 
 def detect_task_type(df, target_column):
+    print("Detecting task type for column '{target_column}'...")
     nunique = df[target_column].nunique()
     dtype = df[target_column].dtype
     
@@ -36,6 +37,7 @@ def detect_task_type(df, target_column):
         return "unknown"
 
 def suggest_preprocessing_steps(df):
+    print("SUggesting preprocessing steps...")
     suggestions = []
     
     # Missing values
@@ -59,6 +61,7 @@ def suggest_preprocessing_steps(df):
     return suggestions
 
 def preprocess(df, target_column):
+    print(f"Preprocessing data with target column '{target_column}'...")
     X = df.drop(columns=[target_column])
     y = df[target_column]
 
@@ -91,6 +94,7 @@ def preprocess(df, target_column):
     return X, y
 
 def agent_chat_prompt(df, target_column):
+    print("Creating agent chat prompt...")
     task = detect_task_type(df, target_column)
     steps = suggest_preprocessing_steps(df)
     
