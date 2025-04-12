@@ -1,15 +1,27 @@
-# Model Evaluation & Visualization Agent
+## Model Evaluation & Visualization Agent
 
-This agent evaluates ML model predictions and visualizes results using FastAPI.
+Developed as part of the AI-Co-Pilot project, this agent evaluates ML predictions and generates performance insights with visual output.
 
-## Features
-- Uploads `y_true`, `y_pred`, `y_proba` CSVs
-- Computes accuracy
-- Generates confusion matrix & ROC curve
-- Saves plots to `/plots/`
-- FastAPI endpoint: `/evaluate`
-- Swagger UI: `http://localhost:8000/docs`
 
-## Run Locally
-```bash
-uvicorn evaluation_api:app --reload
+- ✅ Accuracy score
+- 📊 Confusion Matrix plot
+- 📈 ROC Curve plot
+- 🧠 Auto-generated performance summary
+
+### Endpoint
+
+**POST /evaluate**
+
+Form-data parameters:
+- `y_true_file`: CSV of true labels
+- `y_pred_file`: CSV of predicted labels
+- `y_proba_file`: CSV of prediction probabilities
+
+### Response
+```json
+{
+  "accuracy": 0.82,
+  "confusion_matrix_path": "plots/confusion_matrix.png",
+  "roc_curve_path": "plots/roc_curve.png",
+  "summary": "The model performed well with 82.0% accuracy. ROC curve suggests good class separability."
+}
