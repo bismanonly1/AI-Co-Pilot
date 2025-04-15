@@ -28,7 +28,8 @@ Expected flow:
 import re
 import requests
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Tuple
+import streamlit as st
 
 class ChatAgent:
     def __init__(self, endpoint="http://localhost:11434/api/generate", model="llama2"):
@@ -37,60 +38,69 @@ class ChatAgent:
         self.ensure_llama_running()
 
     def ensure_llama_running(self):
-        """
-        Ensures llama2 is running via Ollama. Starts it if not running.
-        """
         try:
             result = subprocess.run(["ollama", "ps"], capture_output=True, text=True)
             if self.model not in result.stdout:
-                print(f"Starting {self.model} with ollama...")
+                st.warning(f"Starting {self.model} with ollama...")
                 subprocess.Popen(["ollama", "run", self.model])
             else:
-                print(f"{self.model} already running.")
+                st.info(f"{self.model} already running.")
         except FileNotFoundError:
-            print("Ollama is not installed or not in PATH.")
+            st.error("Ollama is not installed or not in PATH.")
 
-    def analyze(self, user_input: str) -> Dict:
+    def converse(self, conversation_history: List[Dict]) -> Tuple[str, Dict]:
         """
-        Extracts project intent: task type, target variable, and feature hints using LLaMA2 via Ollama.
+        Handles a true conversation with the LLM.
+        LLM guides the learner until it feels ready. We extract goal only if clearly complete.
         """
         system_prompt = (
-            "You are a helpful AI assistant that helps identify machine learning project details.\n"
-            "From the user's description, extract the following:\n"
-            "1. Task type (classification or regression)\n"
-            "2. Target variable\n"
-            "3. List of features or keywords likely to be relevant.\n"
-            "Return the answer in plain text with headings."
+            "You are a friendly AI tutor helping a beginner plan a machine learning project.\n"
+            "Your goal is to understand three things: the ML task type (classification or regression), the target variable, and relevant features.\n"
+            "Ask one follow-up question at a time if anything is unclear.\n"
+            "Only once you clearly know all three, say: 'Great, we’re ready to proceed. Please upload your dataset.'\n"
+            "Keep your tone conversational and supportive."
         )
+
+        # Format conversation into a single prompt string for Ollama
+        full_prompt = system_prompt + "\n\n"
+        for msg in conversation_history:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            full_prompt += f"{role}: {msg['content']}\n"
+        full_prompt += "Assistant:"
 
         payload = {
             "model": self.model,
-            "prompt": f"{system_prompt}\n\nUser: {user_input}\n",
+            "prompt": full_prompt,
             "stream": False
         }
 
         response = requests.post(self.endpoint, json=payload)
         response.raise_for_status()
-        output_text = response.json().get("response", "")
+        assistant_reply = response.json().get("response", "")
 
-        # Debug print
-        print("Raw LLaMA2 Output:\n", output_text)
+        st.chat_message("assistant").write(assistant_reply)
 
-        task = "classification" if "classification" in output_text.lower() else "regression"
-        target_match = re.search(r"target.*?:\s*(\w+)", output_text, re.IGNORECASE)
-        target = target_match.group(1) if target_match else "unknown"
-        features = re.findall(r"['\"](.*?)['\"]", output_text)
+        # If the assistant signals readiness, attempt to extract goal
+        goal = {"task": None, "target": None, "features": []}
 
-        return {
-            "task": task,
-            "target": target,
-            "features": features
-        }
+        if "upload your dataset" in assistant_reply.lower():
+            task = "classification" if "classification" in assistant_reply.lower() else ("regression" if "regression" in assistant_reply.lower() else None)
+            target_match = re.search(r"target.*?:\s*(\w+)", assistant_reply, re.IGNORECASE)
+            target = target_match.group(1) if target_match else None
+            features = re.findall(r"['\"](.*?)['\"]", assistant_reply)
+
+            goal = {
+                "task": task,
+                "target": target,
+                "features": features
+            }
+
+        return assistant_reply, goal
+
+    def is_complete(self, goal: Dict) -> bool:
+        return bool(goal.get("task") and goal.get("target") and goal.get("features"))
 
     def recommend_dataset(self, project_goal: Dict) -> List[str]:
-        """
-        Return list of recommended dataset names based on goal.
-        """
         task = project_goal.get("task")
         target = project_goal.get("target")
         if task == "regression":
@@ -99,12 +109,8 @@ class ChatAgent:
             return ["Titanic Survival", "Customer Churn", "Iris Classification"]
 
     def summarize_results(self, eval_report: Dict, model: any) -> str:
-        """
-        Return a friendly summary based on the model evaluation.
-        """
         summary = f"Your {model.__class__.__name__} model achieved the following:\n"
         for metric, value in eval_report.items():
             summary += f"- {metric}: {value}\n"
         summary += "\nLooks like you're well on your way! 🎯"
         return summary
-
