@@ -29,8 +29,14 @@ import re
 import requests
 import subprocess
 from typing import Dict, List, Tuple
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import streamlit as st
 import pandas as pd
+from utils.data_helpers import guess_target_column, detect_task_type
+
 
 class ChatAgent:
     def __init__(self, endpoint="http://localhost:11434/api/generate", model="llama2"):
@@ -49,18 +55,19 @@ class ChatAgent:
         except FileNotFoundError:
             st.error("Ollama is not installed or not in PATH.")
 
-    def inspect_dataset(self, df: pd.DataFrame) -> str:
-        info = f"I see your dataset has {df.shape[0]} rows and {df.shape[1]} columns.\n"
-        info += "Here are some of the column names: " + ", ".join(df.columns[:min(5, len(df.columns))]) + ".\n"
+    def inspect_dataset(self, df: pd.DataFrame) -> Tuple[str, str, str]:
+        message = f"The dataset has {df.shape[0]} rows and {df.shape[1]} columns.\n"
+        message += "Here are some column names: " + ", ".join(df.columns[:5]) + "...\n"
 
-        if "quality" in df.columns:
-            info += "The column 'quality' looks like a good candidate for predicting.\n"
-            info += "Would you like to train a classifier to predict wine quality?\n"
-        else:
-            info += "Which column would you like to predict or analyze?\n"
+        target = guess_target_column(df)
+        task = detect_task_type(df, target)
 
-        info += "Let me know what you're hoping to do with this dataset, and I’ll help guide you."
-        return info
+        message += f"\nI suggest using '{target}' as the target column.\n"
+        message += f"Based on the values in that column, this looks like a **{task}** task.\n"
+        message += "Shall we begin with preprocessing?"
+
+        return message, target, task
+
 
     def converse(self, conversation_history: List[Dict]) -> Tuple[str, Dict]:
         system_prompt = (
