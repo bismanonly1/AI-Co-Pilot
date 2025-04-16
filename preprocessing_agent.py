@@ -4,6 +4,20 @@ from sklearn.impute import SimpleImputer
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+import io
+
+# Initialize FastAPI
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize LLM
 llm = OllamaLLM(model="llama3")
@@ -108,3 +122,20 @@ def agent_chat_prompt(df, target_column):
 
 Would you like to apply these preprocessing steps automatically?
 """
+
+@app.post("/preprocess")
+async def preprocess_agent(
+    file: UploadFile = File(...),
+    target_column: str = Form(...)
+):
+    contents = await file.read()
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    X, y = preprocess(df, target_column)
+    chat_prompt = agent_chat_prompt(df, target_column)
+
+    return {
+        "message": "Preprocessing completed successfully.",
+        "chat_prompt": chat_prompt,
+        "X_sample": X.head().to_dict(orient ="records"),
+        "y_sample": y.head().tolist()
+    }
