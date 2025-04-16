@@ -30,6 +30,7 @@ import requests
 import subprocess
 from typing import Dict, List, Tuple
 import streamlit as st
+import pandas as pd
 
 class ChatAgent:
     def __init__(self, endpoint="http://localhost:11434/api/generate", model="llama2"):
@@ -48,11 +49,20 @@ class ChatAgent:
         except FileNotFoundError:
             st.error("Ollama is not installed or not in PATH.")
 
+    def inspect_dataset(self, df: pd.DataFrame) -> str:
+        info = f"I see your dataset has {df.shape[0]} rows and {df.shape[1]} columns.\n"
+        info += "Here are some of the column names: " + ", ".join(df.columns[:min(5, len(df.columns))]) + ".\n"
+
+        if "quality" in df.columns:
+            info += "The column 'quality' looks like a good candidate for predicting.\n"
+            info += "Would you like to train a classifier to predict wine quality?\n"
+        else:
+            info += "Which column would you like to predict or analyze?\n"
+
+        info += "Let me know what you're hoping to do with this dataset, and I’ll help guide you."
+        return info
+
     def converse(self, conversation_history: List[Dict]) -> Tuple[str, Dict]:
-        """
-        Handles a true conversation with the LLM.
-        LLM guides the learner until it feels ready. We extract goal only if clearly complete.
-        """
         system_prompt = (
             "You are a friendly AI tutor helping a beginner plan a machine learning project.\n"
             "Your goal is to understand three things: the ML task type (classification or regression), the target variable, and relevant features.\n"
@@ -61,7 +71,6 @@ class ChatAgent:
             "Keep your tone conversational and supportive."
         )
 
-        # Format conversation into a single prompt string for Ollama
         full_prompt = system_prompt + "\n\n"
         for msg in conversation_history:
             role = "User" if msg["role"] == "user" else "Assistant"
@@ -80,10 +89,9 @@ class ChatAgent:
 
         st.chat_message("assistant").write(assistant_reply)
 
-        # If the assistant signals readiness, attempt to extract goal
         goal = {"task": None, "target": None, "features": []}
 
-        if "upload your dataset" in assistant_reply.lower():
+        if "upload your dataset" in assistant_reply.lower() or "we're ready" in assistant_reply.lower():
             task = "classification" if "classification" in assistant_reply.lower() else ("regression" if "regression" in assistant_reply.lower() else None)
             target_match = re.search(r"target.*?:\s*(\w+)", assistant_reply, re.IGNORECASE)
             target = target_match.group(1) if target_match else None
