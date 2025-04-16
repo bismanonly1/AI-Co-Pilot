@@ -37,7 +37,8 @@ class EvaluationAgent:
                 y_bin = label_binarize(y, classes=list(set(y)))
                 results["AUC"] = roc_auc_score(y_bin, y_proba, multi_class="ovr")
             else:
-                results["AUC"] = roc_auc_score(y, y_proba[:, 1] if y_proba.ndim > 1 else y_proba)
+                y_binary_proba = y_proba[:, 1] if hasattr(model, "predict_proba") and y_proba.ndim > 1 else y_proba
+                results["AUC"] = roc_auc_score(y, y_binary_proba)
 
             visuals["confusion_matrix"] = self._plot_confusion_matrix(y, y_pred)
             roc = self._plot_roc_curve(y, y_proba)
@@ -63,8 +64,9 @@ class EvaluationAgent:
         if len(set(y_true)) > 2:
             return None  # Skip ROC curve for multiclass
 
-        fpr, tpr, _ = roc_curve(y_true, y_proba[:, 1] if y_proba.ndim > 1 else y_proba)
-        roc_auc = roc_auc_score(y_true, y_proba[:, 1] if y_proba.ndim > 1 else y_proba)
+        y_binary_proba = y_proba[:, 1] if y_proba.ndim > 1 else y_proba
+        fpr, tpr, _ = roc_curve(y_true, y_binary_proba)
+        roc_auc = roc_auc_score(y_true, y_binary_proba)
         fig, ax = plt.subplots()
         ax.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}", color="green")
         ax.plot([0, 1], [0, 1], linestyle='--', color='gray')

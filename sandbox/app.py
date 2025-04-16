@@ -6,7 +6,9 @@ from agents.model_training_agent import ModelTrainerAgent
 from agents.hyperparameter_agent import HyperparameterTunerAgent
 from agents.evaluation_agent import EvaluationAgent
 from utils.data_helpers import detect_task_type
-from sklearn.preprocessing import label_binarize
+from utils.export_helpers import generate_pdf_summary
+import pickle
+
 
 
 st.set_page_config(page_title="Data Science Assistant", layout="centered")
@@ -197,3 +199,63 @@ if st.session_state.get("model_tuned"):
             st.write(f"**Best Parameters:** `{value}`")
         else:
             st.write(f"**{key}:** {value:.4f}")
+    # Re-evaluate the tuned model
+    results, visuals = evaluation_agent.evaluate(
+        st.session_state["tuned_model"],
+        {"X": st.session_state["X"], "y": st.session_state["y"]},
+        st.session_state["project_goal"]
+    )
+    st.session_state["tuned_evaluation_results"] = results
+    st.session_state["tuned_evaluation_plots"] = visuals
+    if st.session_state.get("tuned_evaluation_results"):
+        st.markdown("### 📈 Detailed Evaluation (Tuned Model)")
+        for metric, value in st.session_state["tuned_evaluation_results"].items():
+            if isinstance(value, float):
+                st.write(f"**{metric}:** {value:.4f}")
+            else:
+                st.write(f"**{metric}:** {value}")
+
+    if st.session_state.get("tuned_evaluation_plots"):
+        for title, base64_image in st.session_state["tuned_evaluation_plots"].items():
+            st.markdown(f"#### {title.replace('_', ' ').title()}")
+            st.image(base64_image, use_column_width=True)
+    
+if st.session_state.get("model_tuned"):
+    import pickle
+    from utils.export_helpers import generate_pdf_summary
+
+    # Save tuned model
+    with open("tuned_model.pkl", "wb") as f:
+        pickle.dump(st.session_state["tuned_model"], f)
+
+    st.markdown("### 📥 Download Your Artifacts")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        with open("tuned_model.pkl", "rb") as f:
+            st.download_button(
+                "💾 Download Tuned Model (.pkl)",
+                f,
+                file_name="tuned_model.pkl",
+                mime="application/octet-stream"
+            )
+
+    with col2:
+        if st.button("🧾 Generate PDF Summary"):
+            path = generate_pdf_summary(
+                st.session_state["project_goal"],
+                st.session_state["selected_model_name"],
+                st.session_state["model_metrics"],
+                st.session_state["tuned_metrics"]
+            )
+            with open(path, "rb") as f:
+                st.download_button(
+                    "📄 Download PDF Summary",
+                    f,
+                    file_name="model_summary.pdf",
+                    mime="application/pdf"
+                )
+
+
+
