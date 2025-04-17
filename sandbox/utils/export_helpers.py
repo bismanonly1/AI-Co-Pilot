@@ -1,5 +1,5 @@
 from fpdf import FPDF
-
+import pickle
 def generate_pdf_summary(project_goal, model_name, metrics, tuned_metrics=None):
     pdf = FPDF()
     pdf.add_page()
@@ -28,3 +28,7 @@ def generate_pdf_summary(project_goal, model_name, metrics, tuned_metrics=None):
     pdf.output(output_path)
     return output_path
 
+def save_model_pickle(model, filename="tuned_model.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(model, f)
+    return filename

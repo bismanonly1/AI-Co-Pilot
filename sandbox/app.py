@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from agents.chat_agent import ChatAgent
+from agents.chat_agent_local import ChatAgent
 from agents.preprocessing_agent import PreprocessingAgent
 from agents.model_training_agent import ModelTrainerAgent
 from agents.hyperparameter_agent import HyperparameterTunerAgent
@@ -11,8 +11,12 @@ import pickle
 
 
 
-st.set_page_config(page_title="Data Science Assistant", layout="centered")
-st.title("🤖 Multi-Agent Data Science Assistant")
+st.set_page_config(page_title="Build your own ML model", layout="centered")
+st.title("🤖 ML 101: ML Simulator")
+
+st.subheader("You just want to build a model?")
+st.write("No problem! I can help you with that.")
+st.write("Upload your dataset, and I'll help you preprocess, train, and evaluate a machine learning model.")
 
 # --- Initialize agents ---
 chat_agent = ChatAgent()
@@ -160,14 +164,14 @@ if st.session_state.get("model_trained"):
         st.session_state["trained_model"]
     ))
 
-# --- Evaluation Plots ---
-if st.session_state.get("evaluation_results"):
-    st.markdown("### 📈 Detailed Evaluation")
-    for metric, value in st.session_state["evaluation_results"].items():
-        if isinstance(value, float):
-            st.write(f"**{metric}:** {value:.4f}")
-        else:
-            st.write(f"**{metric}:** {value}")
+# # --- Evaluation Plots ---
+# if st.session_state.get("evaluation_results"):
+#     st.markdown("### 📈 Detailed Evaluation")
+#     for metric, value in st.session_state["evaluation_results"].items():
+#         if isinstance(value, float):
+#             st.write(f"**{metric}:** {value:.4f}")
+#         else:
+#             st.write(f"**{metric}:** {value}")
 
 if st.session_state.get("evaluation_plots"):
     for title, base64_image in st.session_state["evaluation_plots"].items():
@@ -198,7 +202,8 @@ if st.session_state.get("model_tuned"):
         if key == "Best Params":
             st.write(f"**Best Parameters:** `{value}`")
         else:
-            st.write(f"**{key}:** {value:.4f}")
+            st.write(f"**{key}:** {value:.4f}" if isinstance(value, float) else f"**{key}:** {value}")
+
     # Re-evaluate the tuned model
     results, visuals = evaluation_agent.evaluate(
         st.session_state["tuned_model"],
@@ -207,13 +212,13 @@ if st.session_state.get("model_tuned"):
     )
     st.session_state["tuned_evaluation_results"] = results
     st.session_state["tuned_evaluation_plots"] = visuals
-    if st.session_state.get("tuned_evaluation_results"):
-        st.markdown("### 📈 Detailed Evaluation (Tuned Model)")
-        for metric, value in st.session_state["tuned_evaluation_results"].items():
-            if isinstance(value, float):
-                st.write(f"**{metric}:** {value:.4f}")
-            else:
-                st.write(f"**{metric}:** {value}")
+    # if st.session_state.get("tuned_evaluation_results"):
+    #     st.markdown("### 📈 Detailed Evaluation (Tuned Model)")
+    #     for metric, value in st.session_state["tuned_evaluation_results"].items():
+    #         if isinstance(value, float):
+    #             st.write(f"**{metric}:** {value:.4f}")
+    #         else:
+    #             st.write(f"**{metric}:** {value}")
 
     if st.session_state.get("tuned_evaluation_plots"):
         for title, base64_image in st.session_state["tuned_evaluation_plots"].items():
